@@ -1,0 +1,4 @@
+interface:
+  display_name: "LHJWork 知识库治理"
+  short_description: "提供通用功能识别检查与 LHJWork 六维健康度诊断两个独立模块"
+  default_prompt: "使用 $lhjwork-vault-governance；知识库检查先识别实际板块可能承担的功能，再按真实路径报告，需要评分时调用 LHJWork 六维健康度诊断模块。"
