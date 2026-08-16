@@ -8,26 +8,10 @@ if [[ ! -d "$vault_path" ]]; then
   exit 2
 fi
 
-if ! command -v rg >/dev/null 2>&1; then
-  printf 'ERROR: rg is required for this read-only diagnosis scan.\n' >&2
-  exit 3
-fi
-
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bash "$script_dir/audit-vault.sh" "$vault_path"
 
 cd "$vault_path" || exit 2
-
-for required_path in \
-  '00 关于我' \
-  '01 收进来 Raw' \
-  '02 Wiki AI编译层' \
-  '03 Projects 我的项目' \
-  '04 Outputs 输出成果'; do
-  if [[ ! -r "$required_path" ]]; then
-    printf 'SCAN_WARNING: required path is missing or unreadable: %s\n' "$required_path" >&2
-  fi
-done
 
 find_optional() {
   local output status
@@ -58,6 +42,12 @@ knowledge_find() {
     -not -path '*/.git/*' \
     -not -path '*/.codex/*' \
     -not -path '*/.agents/*' \
+    -not -path '*/.claude/*' \
+    -not -path '*/.claudian/*' \
+    -not -path '*/.hermes/*' \
+    -not -path '*/.workbuddy/*' \
+    -not -path '*/.obsidian/*' \
+    -not -path '*/.moma/*' \
     "$@"
 }
 
@@ -76,15 +66,67 @@ count_recent_files() {
     -not -path '*/build/*' | wc -l | tr -d ' '
 }
 
-rg_optional() {
-  local output status
-  output=$(rg "$@" 2>&1)
-  status=$?
-  if [[ "$status" -eq 0 ]]; then
-    printf '%s\n' "$output"
-  elif [[ "$status" -gt 1 ]]; then
-    printf 'SCAN_WARNING: rg failed with exit %s: %s\n' "$status" "$output" >&2
-  fi
+search_optional() {
+  local list_mode=0 only_matches=0 fixed_mode=0 ignore_case=0 pattern=''
+  local arg target file grep_status
+  local -a paths=()
+  while [[ "$#" -gt 0 ]]; do
+    arg="$1"
+    shift
+    case "$arg" in
+      -l) list_mode=1 ;;
+      -o) only_matches=1 ;;
+      -F) fixed_mode=1 ;;
+      -i) ignore_case=1 ;;
+      --glob) [[ "$#" -gt 0 ]] && shift ;;
+      --glob=*) ;;
+      --*) ;;
+      *)
+        if [[ -z "$pattern" ]]; then
+          pattern="$arg"
+        else
+          paths+=("$arg")
+        fi
+        ;;
+    esac
+  done
+  [[ -n "$pattern" ]] || return 0
+  [[ "${#paths[@]}" -gt 0 ]] || paths=(.)
+
+  local -a grep_args=()
+  [[ "$fixed_mode" -eq 1 ]] && grep_args+=(-F) || grep_args+=(-E)
+  [[ "$ignore_case" -eq 1 ]] && grep_args+=(-i)
+  [[ "$only_matches" -eq 1 ]] && grep_args+=(-o)
+
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    if [[ "$list_mode" -eq 1 ]]; then
+      if grep "${grep_args[@]}" -q -- "$pattern" "$file" 2>/dev/null; then
+        printf '%s\n' "$file"
+      fi
+    else
+      output=$(grep "${grep_args[@]}" -- "$pattern" "$file" 2>&1)
+      grep_status=$?
+      if [[ "$grep_status" -eq 0 ]]; then
+        printf '%s\n' "$output"
+      elif [[ "$grep_status" -gt 1 ]]; then
+        printf 'SCAN_WARNING: grep fallback failed for %s: %s\n' "$file" "$output" >&2
+      fi
+    fi
+  done < <(
+    for target in "${paths[@]}"; do
+      [[ -e "$target" ]] || continue
+      if [[ -f "$target" ]]; then
+        [[ "$target" == *.md ]] && printf '%s\n' "$target"
+      else
+        find_optional "$target" -type f -iname '*.md' \
+          -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' \
+          -not -path '*/.git/*' -not -path '*/.codex/*' -not -path '*/.agents/*' \
+          -not -path '*/.claude/*' -not -path '*/.obsidian/*' -not -path '*/.moma/*' \
+          -print
+      fi
+    done | sort -u
+  )
 }
 
 percent_of() {
@@ -180,42 +222,36 @@ printf '\n## Step 1: all top-level entries\n\n'
 find_optional . -mindepth 1 -maxdepth 1 -not -name '.git' -print | sort
 
 printf '\n## Step 1: core entry candidates\n\n'
-find_optional . -maxdepth 4 -type f \
-  \( -iname 'START*.md' -o -iname 'README.md' -o -iname '*入口*.md' \
-     -o -iname '*工作台*.md' -o -iname '*关于我*.md' -o -iname '*主线*.md' \
-     -o -iname '*项目地图*.md' -o -iname '*Raw索引*.md' -o -iname '*输出索引*.md' \) \
+entry_candidates=$(find_optional . -maxdepth 5 -type f \
+  \( -iname 'START*.md' -o -iname 'README*.md' -o -iname 'HOME*.md' \
+     -o -iname '*入口*.md' -o -iname '*首页*.md' -o -iname '*工作台*.md' \
+     -o -iname '*导航*.md' -o -iname '*地图*.md' -o -iname '*索引*.md' \
+     -o -iname '*关于*.md' -o -iname '*主线*.md' -o -iname '*current*.md' \
+     -o -iname '*dashboard*.md' -o -iname '*index*.md' -o -iname '*map*.md' \) \
   -not -path '*/node_modules/*' \
   -not -path '*/dist/*' \
   -not -path '*/build/*' \
   -not -path './.codex/*' \
   -not -path './.agents/*' \
+  -not -path './.claude/*' \
+  -not -path './.claudian/*' \
+  -not -path './.hermes/*' \
+  -not -path './.workbuddy/*' \
   -not -path './.obsidian/*' \
   -not -path './.moma/*' \
-  -print | sort | head -n 80
-
-raw_count=$(count_knowledge '01 收进来 Raw')
-wiki_count=$(count_knowledge '02 Wiki AI编译层')
-projects_count=$(count_knowledge '03 Projects 我的项目')
-outputs_count=$(count_knowledge '04 Outputs 输出成果')
-functional_total=$((raw_count + wiki_count + projects_count + outputs_count))
+  -print | sort)
+printf '%s\n' "$entry_candidates" | head -n 80
 
 printf '\n## Step 1: functional-region physical distribution\n\n'
-printf 'Raw_equivalent: %s files | %s%%\n' "$raw_count" "$(percent_of "$raw_count" "$functional_total")"
-printf 'Wiki_equivalent: %s files | %s%%\n' "$wiki_count" "$(percent_of "$wiki_count" "$functional_total")"
-printf 'Projects_equivalent: %s files | %s%%\n' "$projects_count" "$(percent_of "$projects_count" "$functional_total")"
-printf 'Outputs_physical_folder: %s files | %s%%\n' "$outputs_count" "$(percent_of "$outputs_count" "$functional_total")"
-printf 'distribution_note: Outputs is an index/entry area; physical file share is not the registered-output count.\n'
-printf 'other_top_level_function_candidates:\n'
+functional_total=$(count_knowledge .)
 while IFS= read -r target; do
-  case "$target" in
-    './01 收进来 Raw'|'./02 Wiki AI编译层'|'./03 Projects 我的项目'|'./04 Outputs 输出成果') continue ;;
-  esac
   candidate_count=$(count_knowledge "$target")
   if [[ "$candidate_count" -gt 0 ]]; then
-    printf '%s files | %s\n' "$candidate_count" "$target"
+    printf '%s files | %s%% | %s\n' "$candidate_count" \
+      "$(percent_of "$candidate_count" "$functional_total")" "$target"
   fi
 done < <(find_optional . -mindepth 1 -maxdepth 1 -type d -not -name '.*' -print | sort)
-printf 'function_note: manually classify these candidates by actual function; canonical folder names are not the scoring boundary.\n'
+printf 'function_note: classify every region by actual content and links; folder names are only hints and one function may span several regions.\n'
 
 printf '\n## Step 1: Obsidian and MOMA presence signals\n\n'
 for target in '.obsidian' '.moma' '.obsidian/plugins/moma' '.obsidian/plugins/moma-obsidian-sync'; do
@@ -245,64 +281,62 @@ done
 printf 'security_note: presence and timestamps only; credential values were not read.\n'
 
 printf '\n## Step 2: knowledge-object counts and sample candidates\n\n'
-project_sites=$(find_optional . -type f -name '*-项目现场.md' \
-  -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' \
-  -not -path './.codex/*' -not -path './.agents/*' -not -path './.obsidian/*' \
-  -not -path './.moma/*' -print | sort)
-project_sites_in_region=''
-project_sites_outside_region=''
-while IFS= read -r target; do
-  [[ -n "$target" ]] || continue
-  if [[ "$target" == './03 Projects 我的项目/'* ]]; then
-    project_sites_in_region+="${project_sites_in_region:+$'\n'}$target"
-  else
-    project_sites_outside_region+="${project_sites_outside_region:+$'\n'}$target"
-  fi
-done <<< "$project_sites"
-judgment_page_candidates=$(find_optional '02 Wiki AI编译层/02 判断候选' -type f -name '*.md' \
-  -not -name '*索引.md' -print | sort)
-judgment_container_candidates=$(find_optional '02 Wiki AI编译层/02 判断候选' -type f -name '*索引*.md' \
-  -print | sort)
+all_markdown_files=$(knowledge_find . | grep -Ei '\.md$' || true)
+
+path_hint_candidates() {
+  local pattern="$1"
+  printf '%s\n' "$all_markdown_files" | grep -Ei "$pattern" || true
+}
+
+content_hint_candidates() {
+  local pattern="$1"
+  search_optional -l --glob '*.md' "$pattern" .
+}
+
+combined_candidates() {
+  local path_pattern="$1"
+  local content_pattern="$2"
+  {
+    path_hint_candidates "$path_pattern"
+    content_hint_candidates "$content_pattern"
+  } | sort -u
+}
+
+project_sites=$(combined_candidates \
+  '(project|projects|task|action|plan|项目|任务|行动|计划|现场|待办)' \
+  '^project_status:|^next_action:|^##+[[:space:]]*(目标|进展|下一步|行动|结果|Goal|Progress|Next|Action)')
+judgment_page_candidates=$(combined_candidates \
+  '(judgment|decision|hypothesis|review|判断|决策|假设|验证|复盘)' \
+  '^confirmation:|判断依据|判断理由|我认为|because|hypothesis|decision|验证状态|修正|推翻')
+judgment_container_candidates=$(
+  {
+    path_hint_candidates '(judgment|decision|判断|决策).*(index|索引|register|台账)'
+    content_hint_candidates '^\|[[:space:]]*(判断候选|判断|decision|hypothesis)[[:space:]]*\|'
+  } | sort -u
+)
 judgment_record_candidate_count=$(count_judgment_records "$judgment_container_candidates")
-source_summary_candidates=$(
-  {
-    find_optional . -type f -iname '*来源摘要*.md' \
-      -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' \
-      -not -path './.codex/*' -not -path './.agents/*' -print
-    rg_optional -l --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' --glob '!**/build/**' \
-      --glob '!.codex/**' --glob '!.agents/**' \
-      '^note_type:[[:space:]]*(source_summary|source-summary|source)[[:space:]]*$' .
-  } | sort -u
-)
-source_traceability_candidates=$(
-  rg_optional -l --glob '*.md' \
-    '^(##+[[:space:]]+来源|>[[:space:]]*来源[：:]|\|.*(来源|证据来源).*(摘要|说明)|\|.*摘要.*关联资料)' \
-    '02 Wiki AI编译层/01 主题页' \
-    '02 Wiki AI编译层/03 人物组织' \
-    '02 Wiki AI编译层/04 项目背景' | sort -u
-)
-theme_candidates=$(find_optional '02 Wiki AI编译层/01 主题页' -type f -name '*.md' \
-  -not -name '*索引.md' -print | sort)
-methodology_candidates=$(
-  {
-    find_optional '02 Wiki AI编译层' '05 技能手册' -type f \
-      \( -iname '*方法*.md' -o -iname '*机制*.md' -o -iname '*工作流*.md' -o -iname '*规范*.md' \) \
-      -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' -print
-    rg_optional -l --glob '*.md' '^note_type:[[:space:]]*(method|methodology)[[:space:]]*$|^##+[[:space:]].*(方法|机制|工作流)' \
-      '02 Wiki AI编译层' '05 技能手册'
-  } | sort -u
-)
-output_index_candidates=$(find_optional '04 Outputs 输出成果' -type f -name '*输出索引*.md' -print | sort)
-compile_log_candidates=$(find_optional '02 Wiki AI编译层/05 编译日志' -type f -name '*.md' -print | sort)
-background_candidates=$(find_optional '02 Wiki AI编译层/04 项目背景' -type f -name '*.md' \
-  -not -name '*索引.md' -print | sort)
+source_summary_candidates=$(combined_candidates \
+  '(source|sources|reference|summary|来源|资料|参考|摘要)' \
+  '^note_type:[[:space:]]*(source_summary|source-summary|source)[[:space:]]*$|^##+[[:space:]]*(来源摘要|Source summary|Source Summary)')
+source_traceability_candidates=$(content_hint_candidates \
+  '^(##+[[:space:]]+(来源|Source|References)|>[[:space:]]*(来源|Source)[：:]|\|.*(来源|Source|证据来源).*(摘要|说明|Summary)|\|.*摘要.*关联资料)')
+theme_candidates=$(combined_candidates \
+  '(wiki|knowledge|topic|theme|concept|research|知识|主题|概念|研究)' \
+  '^note_type:[[:space:]]*(topic|theme|knowledge|concept)[[:space:]]*$|^##+[[:space:]]*(主题|核心概念|Topic|Concept)')
+methodology_candidates=$(combined_candidates \
+  '(method|methodology|template|workflow|sop|playbook|方法|机制|模板|流程|规范|手册)' \
+  '^note_type:[[:space:]]*(method|methodology|template|workflow)[[:space:]]*$|^##+[[:space:]].*(方法|机制|工作流|流程|Method|Workflow)')
+output_index_candidates=$(combined_candidates \
+  '(output|outputs|deliver|publish|portfolio|成果|输出|交付|发布|成品)' \
+  '^output_status:|^##+[[:space:]]*(成果|输出|交付|Outputs?|Deliverables?)|\|.*(成果名|Output|Deliverable).*\|')
+compile_log_candidates=$(combined_candidates \
+  '(compile|change|review|log|history|编译|变更|复盘|维护|日志|记录)' \
+  '^##+[[:space:]]*(编译日志|变更记录|复盘记录|Change log|Review log|History)|^last_reviewed:')
+background_candidates=$(combined_candidates \
+  '(background|context|about|profile|brief|背景|上下文|关于|简介|主线)' \
+  '^note_type:[[:space:]]*(background|context|profile)[[:space:]]*$|^##+[[:space:]]*(背景|上下文|目标与范围|Background|Context)')
 
 print_candidate_group 'project_site' "$project_sites" 20
-printf 'project_site_in_projects_region_count: %s\n' "$(count_text_lines "$project_sites_in_region")"
-printf 'project_site_outside_projects_region_count: %s\n' "$(count_text_lines "$project_sites_outside_region")"
-if [[ -n "$project_sites_outside_region" ]]; then
-  printf 'project_site_outside_projects_region:\n%s\n' "$project_sites_outside_region"
-fi
 print_candidate_group 'judgment_page' "$judgment_page_candidates" 10
 print_candidate_group 'judgment_container' "$judgment_container_candidates" 10
 printf 'judgment_record_candidate_count: %s\n' "$judgment_record_candidate_count"
@@ -317,39 +351,24 @@ print_candidate_group 'compile_log' "$compile_log_candidates" 5
 print_candidate_group 'project_background' "$background_candidates" 10
 
 printf '\n## Step 3: active-time distribution\n\n'
-print_activity_distribution 'About_and_entry' '00 关于我'
-print_activity_distribution 'Raw' '01 收进来 Raw'
-print_activity_distribution 'Wiki' '02 Wiki AI编译层'
-print_activity_distribution 'Projects' '03 Projects 我的项目'
-print_activity_distribution 'Outputs' '04 Outputs 输出成果'
-print_activity_distribution 'Methods' '05 技能手册'
+while IFS= read -r target; do
+  [[ -n "$target" ]] || continue
+  print_activity_distribution "$target" "$target"
+done < <(find_optional . -mindepth 1 -maxdepth 1 -type d -not -name '.*' -print | sort)
 
 printf '\n## Step 3: critical-entry timestamps\n\n'
-for target in \
-  '00 关于我/知识库工作台.md' \
-  '00 关于我/关于我.md' \
-  '00 关于我/当前主线.md' \
-  '02 Wiki AI编译层/00 Raw索引.md' \
-  '03 Projects 我的项目/项目地图.md' \
-  '04 Outputs 输出成果/输出索引.md'; do
-  if [[ -f "$target" ]]; then
-    display_stat_record "$target"
-  else
-    printf 'missing: %s\n' "$target"
-  fi
-done
+print_path_activity "$entry_candidates" 30
 
-core_paths=('00 关于我' '01 收进来 Raw' '02 Wiki AI编译层' '03 Projects 我的项目' '04 Outputs 输出成果' '05 技能手册')
-link_occurrences=$(count_text_lines "$(rg_optional -o -F --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' \
-  --glob '!**/build/**' '[[' "${core_paths[@]}")")
-linked_files=$(count_text_lines "$(rg_optional -l -F --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' \
-  --glob '!**/build/**' '[[' "${core_paths[@]}")")
-judgment_reason_files=$(count_text_lines "$(rg_optional -l --glob '*.md' '判断依据|判断理由|因为|来源|证据' \
-  '02 Wiki AI编译层/02 判断候选' '03 Projects 我的项目')")
-judgment_revision_files=$(count_text_lines "$(rg_optional -l --glob '*.md' '修正|推翻|判断变化|验证结果|结果反馈|复盘' \
-  '02 Wiki AI编译层/02 判断候选' '03 Projects 我的项目')")
-action_signal_files=$(count_text_lines "$(rg_optional -l --glob '*.md' '^next_action:|下一步|行动项|待办' \
-  '02 Wiki AI编译层' '03 Projects 我的项目')")
+link_occurrences=$(count_text_lines "$(search_optional -o -F --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' \
+  --glob '!**/build/**' '[[' .)")
+linked_files=$(count_text_lines "$(search_optional -l -F --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' \
+  --glob '!**/build/**' '[[' .)")
+judgment_reason_files=$(count_text_lines "$(search_optional -l --glob '*.md' \
+  '判断依据|判断理由|我认为|因为|来源|证据|decision reason|because|evidence' .)")
+judgment_revision_files=$(count_text_lines "$(search_optional -l --glob '*.md' \
+  '修正|推翻|判断变化|验证结果|结果反馈|复盘|revised|overturned|validation result|retrospective' .)")
+action_signal_files=$(count_text_lines "$(search_optional -l --glob '*.md' \
+  '^next_action:|下一步|行动项|待办|next action|action item|todo' .)")
 
 printf '\n## Step 4: simple network and judgment signals\n\n'
 printf 'wikilink_occurrences: %s\n' "$link_occurrences"

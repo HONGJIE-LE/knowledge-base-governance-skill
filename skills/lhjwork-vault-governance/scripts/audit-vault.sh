@@ -8,11 +8,6 @@ if [[ ! -d "$vault_path" ]]; then
   exit 2
 fi
 
-if ! command -v rg >/dev/null 2>&1; then
-  printf 'ERROR: rg is required for this read-only audit.\n' >&2
-  exit 3
-fi
-
 cd "$vault_path" || exit 2
 
 find_optional() {
@@ -26,14 +21,14 @@ find_optional() {
   fi
 }
 
-rg_optional() {
+grep_optional() {
   local output status
-  output=$(rg "$@" 2>&1)
+  output=$(grep "$@" 2>&1)
   status=$?
   if [[ "$status" -eq 0 ]]; then
     printf '%s\n' "$output"
   elif [[ "$status" -gt 1 ]]; then
-    printf 'SCAN_WARNING: rg failed with exit %s: %s\n' "$status" "$output" >&2
+    printf 'SCAN_WARNING: grep failed with exit %s: %s\n' "$status" "$output" >&2
   fi
 }
 
@@ -54,7 +49,7 @@ knowledge_files() {
 }
 
 markdown_files() {
-  knowledge_files "${1:-.}" | rg_optional -i '\.md$'
+  knowledge_files "${1:-.}" | grep_optional -Ei '\.md$'
 }
 
 count_nonblank() {
@@ -90,7 +85,7 @@ print_name_hints() {
   local pattern="$2"
   local paths="$3"
   local matches
-  matches=$(printf '%s\n' "$paths" | rg_optional -i "$pattern")
+  matches=$(printf '%s\n' "$paths" | grep_optional -Ei "$pattern")
   printf '%s_name_hint_count: %s\n' "$label" "$(count_nonblank "$matches")"
   if [[ -n "$matches" ]]; then
     printf '%s\n' "$matches" | head -n 15
@@ -171,9 +166,14 @@ else
   printf 'none_detected\n'
 fi
 
-dataview_files=$(rg_optional -l --glob '*.md' --glob '!**/node_modules/**' --glob '!**/dist/**' \
-  --glob '!**/build/**' --glob '!.git/**' --glob '!.codex/**' --glob '!.agents/**' \
-  '^```dataview(js)?[[:space:]]*$' .)
+dataview_files=$(
+  while IFS= read -r target; do
+    [[ -n "$target" ]] || continue
+    if grep -Eq '^```dataview(js)?[[:space:]]*$' "$target" 2>/dev/null; then
+      printf '%s\n' "$target"
+    fi
+  done <<< "$all_markdown_files"
+)
 printf 'files_with_dataview: %s\n' "$(count_nonblank "$dataview_files")"
 [[ -z "$dataview_files" ]] || printf '%s\n' "$dataview_files" | head -n 30
 
