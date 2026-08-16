@@ -1,6 +1,6 @@
 # Knowledge Base Governance Skill
 
-一个用于 Obsidian、MOMA 和本地 Markdown 知识库的 Codex Skill。
+一个用于 Obsidian、MOMA 和本地 Markdown 知识库的跨平台 Skill，可供 Codex、Claude Code 和其他兼容 `SKILL.md` 的 AI 使用。
 
 ## 两个独立模块
 
@@ -11,18 +11,18 @@
 - 使用真实目录名和文件名报告，并区分已确认结论与候选映射。
 - 默认只读，不自动移动、删除、改名或修改配置。
 
-### 模块二：LHJWork 六维健康度诊断
+### 模块二：通用六维健康度诊断
 
 - 按 D1-D6 共 100 分诊断知识库成熟度。
 - 输出阶段、降级触发器、关键证据、改进动作和三周复测目标。
-- 该模块采用内置 LHJWork 健康标准；其他知识库使用前应先确认结构和规则是否适用。
+- 先识别各知识库中功能等价的板块，再按统一评分口径诊断，不要求固定目录名称。
 
 ## 安装
 
-1. 下载 Release 中的 `lhjwork-vault-governance-v1.0.0.zip`。
+1. 下载 Release 中的 `lhjwork-vault-governance-v1.1.0.zip`。
 2. 解压后取得 `lhjwork-vault-governance` 文件夹。
-3. 将整个文件夹复制到个人 Skill 目录 `~/.codex/skills/`，或项目目录 `.codex/skills/`。
-4. 重启 Codex，让 Skill 重新载入。
+3. 将整个文件夹复制到当前 AI 支持的 Skill 目录，例如 Codex 的 `~/.codex/skills/`、Claude Code 的 `~/.claude/skills/`，或项目自己的 Skills 目录。
+4. 重启或重新载入当前 AI 的 Skills。
 
 安装后的核心文件应位于：
 
@@ -51,9 +51,16 @@ lhjwork-vault-governance/
 ## 运行条件
 
 - Bash
-- ripgrep（`rg`）
+- `find`、`grep`、`awk`、`sed`、`sort`、`wc`、`stat`、`date` 等系统基础命令
+- 不要求安装 ripgrep（`rg`）；扫描直接使用系统自带的 `grep`
 - `jq` 为可选依赖，用于读取部分 Obsidian 配置的结构信息
 - Obsidian CLI 为可选能力；Obsidian 未运行时只完成文件层检查
+
+## 跨平台说明
+
+- `SKILL.md` 按自身实际安装目录定位脚本，不写死 `.codex/skills` 或 `.claude/skills`。
+- `agents/openai.yaml` 只提供 OpenAI/Codex 界面元数据，Claude Code 和其他 AI 可直接忽略。
+- 脚本通过 `bash` 调用，不依赖文件的可执行权限。
 
 ## 安全边界
 
@@ -64,7 +71,7 @@ lhjwork-vault-governance/
 
 ## 版本
 
-- 当前版本：`v1.0.0`
+- 当前版本：`v1.1.0`
 - 发布日期：2026-08-16
 
 ## 授权说明
