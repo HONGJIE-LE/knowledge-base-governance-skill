@@ -1,30 +1,37 @@
 ---
 name: lhjwork-vault-governance
-description: "Govern Obsidian, MOMA and local Markdown knowledge bases through two separate modules: (1) a general read-only inspection that discovers the vault's actual functional regions before judging structure, links, metadata, projects, decisions, outputs, plugins, sync and backup, without forcing fixed folder or tag labels; and (2) an LHJWork six-dimension 100-point health diagnosis that judges maturity stage, downgrade triggers and three-week targets. Use for 检查一下知识库, 知识库检查, 健康度诊断, 六维打分, vault improvements, properties, dashboard and Dataview maintenance, workflows, plugins, sync, backup, or user-approved repairs."
+description: "Inspect and govern Obsidian, MOMA and local Markdown knowledge bases through two separate, portable modules: (1) a read-only inspection that discovers actual functional regions before checking structure, links, metadata, projects, decisions, outputs, plugins, sync and backup; and (2) a six-dimension 100-point health diagnosis that judges maturity, downgrade triggers and three-week targets. Use in Codex, Claude Code or another SKILL.md-compatible agent for 检查一下知识库, 知识库检查, 健康度诊断, 六维打分, vault improvements, properties, dashboards, Dataview, workflows, plugins, sync, backup, or user-approved repairs."
 ---
 
-# LHJWork Vault Governance
+# Knowledge Base Governance
 
 ## Goal
 
-Keep the target knowledge base understandable, traceable, and safe to maintain. Module 1 works with any Obsidian, MOMA or local Markdown knowledge base; Module 2 applies the embedded LHJWork health standard. Inspect current files before drawing conclusions, separate temporary counts from lasting rules, and preserve the user's final confirmation authority.
+Keep a knowledge base understandable, traceable and safe to maintain. Module 1 performs a compact inspection. Module 2 performs a full six-dimension health diagnosis. Both modules discover functional equivalents from the target vault instead of requiring fixed folder names, tags, properties or a specific AI platform.
+
+## Resolve the Skill and vault paths
+
+1. Set `SKILL_DIR` to the absolute directory containing this loaded `SKILL.md`.
+2. Obtain that directory from the current skill loader or actual file path. Never guess `.codex/skills`, `.claude/skills`, `.agents/skills` or another platform-specific location.
+3. Set `VAULT_PATH` to the user-supplied knowledge-base path; if none is supplied, use the current workspace.
+4. Invoke bundled scripts with `bash`. Do not require executable permission on the script files.
+
+```bash
+bash "$SKILL_DIR/scripts/audit-vault.sh" "$VAULT_PATH"
+bash "$SKILL_DIR/scripts/health-diagnosis-scan.sh" "$VAULT_PATH"
+```
+
+The scripts require Bash and standard commands such as `find`, `grep`, `awk`, `sed`, `sort`, `wc`, `stat` and `date`. They do not require `rg`. `git`, `jq` and Obsidian CLI add optional checks when available; their absence must not abort the scan.
+
+`agents/openai.yaml` is optional OpenAI/Codex interface metadata. Other agents may ignore it. Never treat it as a runtime dependency or rewrite the Skill because of it.
 
 ## Determine scope and local rules
 
-1. For either module, inspect the vault path supplied by the user; if none is supplied, use the current workspace. Module 2 applies its embedded LHJWork standard only when that structure is present or explicitly adopted.
-2. Read the target vault's `AGENTS.md` and any local rules completely when present.
-3. In Module 1, discover START, README, home, dashboard, map, index, about, current-focus and equivalent entry candidates from the actual vault. Do not assume the LHJWork entry paths exist.
-4. In Module 2 or an approved LHJWork repair, read these current sources of truth:
-   - `00 关于我/知识库工作台.md`
-   - `00 关于我/关于我.md`
-   - `00 关于我/当前主线.md`
-   - `05 技能手册/知识库属性与状态规范.md`
-   - `02 Wiki AI编译层/00 Raw索引.md`
-   - `03 Projects 我的项目/项目地图.md` and the owning project现场
-   - `02 Wiki AI编译层/02 判断候选/判断候选索引.md`
-   - `04 Outputs 输出成果/输出索引.md`
-   - `02 Wiki AI编译层/05 编译日志/编译日志.md`
-5. Treat dashboards and indexes as navigation or summary layers until their claims are checked against actual sources.
+1. Read the target vault's `AGENTS.md` and other local rules completely when present.
+2. Discover the vault's actual entry, context, capture, source, knowledge, project, action, judgment, review, output, method, archive, configuration and automation candidates.
+3. Treat START, README, home, dashboard, map, index, about and current-focus names only as weak entry hints.
+4. Treat dashboards and indexes as navigation or summary layers until their claims are checked against actual source files.
+5. Prefer the target vault's confirmed rules over the embedded general templates.
 
 ## Route to exactly one module
 
@@ -43,11 +50,7 @@ If the requested action includes moving, deleting, overwriting, project ownershi
 
 1. Read [knowledge-base-inspection-template.md](references/knowledge-base-inspection-template.md) and [governance-checklist.md](references/governance-checklist.md) completely. Do not load the health-diagnosis standard.
 2. Treat all template terms as functional hypotheses, not required folder names, tags, properties or report headings.
-3. Run:
-
-```bash
-bash .codex/skills/lhjwork-vault-governance/scripts/audit-vault.sh "<vault-path>"
-```
+3. Run `bash "$SKILL_DIR/scripts/audit-vault.sh" "$VAULT_PATH"`.
 
 4. Build a functional-candidate map before diagnosing problems. For each relevant actual path, record possible functions, evidence and high/medium/low confidence. Allow one region to serve multiple functions and one function to span multiple regions.
 5. Open representative files from candidate regions. Use names only as weak hints; use content, links, properties, activity and navigation references as stronger evidence.
@@ -57,19 +60,14 @@ bash .codex/skills/lhjwork-vault-governance/scripts/audit-vault.sh "<vault-path>
 9. Do not output D1-D6 scores, a total score, maturity stage, downgrade rules, three-week targets, A-D direction selection or the health-diagnosis hard-truth line.
 10. State that no files were modified.
 
-## Module 2: run a health-degree diagnosis
+## Module 2: run a health diagnosis
 
 For a health score or maturity-stage diagnosis:
 
-1. Read [health-diagnosis-standard.md](references/health-diagnosis-standard.md) completely.
-2. Run the read-only inventory and activity scan:
-
-```bash
-bash .codex/skills/lhjwork-vault-governance/scripts/health-diagnosis-scan.sh "<vault-path>"
-```
-
-3. Scan the whole repository inventory, top-level structure, functional regions and active-time distribution. Do not claim that every file body was read.
-4. Open the required samples from projects, judgments, source summaries, topics, methods, output index, compile log and project backgrounds. If a category is empty, report it as a diagnostic signal.
+1. Read [health-diagnosis-standard.md](references/health-diagnosis-standard.md) completely. Do not load the Module 1 report template.
+2. Run `bash "$SKILL_DIR/scripts/health-diagnosis-scan.sh" "$VAULT_PATH"`.
+3. Scan the whole repository inventory, top-level structure, functional candidates and active-time distribution. Do not claim that every file body was read.
+4. Open the required samples from project workspaces, judgments, source summaries, topics, methods, output indexes, review or compile logs, and project backgrounds. Use functional equivalents; if a category has no supported candidate, report it as a diagnostic signal.
 5. Check entry freshness against the latest 7-14 day activity and current source indexes. Mark process-layer activity without entry-layer synchronization as structural imbalance.
 6. Verify application-level links, Dataview and plugin runtime through Obsidian CLI when the app is available. Inspect MOMA presence and activity without exposing credentials.
 7. Score D1-D6 directly against their weighted evidence rubric, add the six numbers, apply downgrade triggers, and report confidence.
@@ -81,46 +79,42 @@ bash .codex/skills/lhjwork-vault-governance/scripts/health-diagnosis-scan.sh "<v
 
 Keep Module 2 read-only. It may reuse factual output from `audit-vault.sh` through the diagnosis scanner, but must not switch to Module 1's report format. A later repair requires a separate file-level preview and confirmation.
 
-Do not ask the user to provide the tutorial again. In either module, do not say “对照文档”; report directly against the embedded standards.
+Do not ask the user to provide an external tutorial again. In either module, report directly against the embedded standards without saying “对照文档”.
 
-## Verify in the live Obsidian app
+## Verify in the live application
 
-Use the repository's `obsidian-cli` skill when Obsidian is running. Check command help before using unfamiliar CLI syntax, then inspect broken links, unresolved links, orphans, properties, Dataview rendering, enabled plugins, sync state, and application errors as relevant.
+Use a compatible Obsidian CLI or application-control tool when Obsidian is running. Check its help before using unfamiliar syntax, then inspect broken links, unresolved links, orphans, properties, query rendering, enabled plugins, sync state and application errors as relevant.
 
-If the CLI says it cannot find Obsidian, report that only file-level checks were completed. Do not claim that graph links, Dataview rendering, or plugin runtime behavior were verified.
+If no compatible application-control capability is available, report that only file-level checks were completed. Do not claim that graph links, Dataview rendering or plugin runtime behavior were verified.
 
 ## Apply a declared property standard
 
-First identify the target vault's own property rules and follow those rules. Do not treat the LHJWork fields as a universal schema. Only for LHJWork or a vault that explicitly adopts `05 技能手册/知识库属性与状态规范.md`:
+1. Identify the target vault's own property rules before editing. Do not impose a universal schema.
+2. Determine each field's meaning file by file. Never perform a mechanical repository-wide rename of an ambiguous field such as `status`.
+3. Never promote candidate, draft or unverified content to confirmed without explicit user confirmation.
+4. Update review timestamps only after actually reviewing the file's content.
+5. After changing a property, inspect every query, template or automation that may depend on the old field.
+6. Do not force Markdown properties onto binary files; track their state in an existing index or equivalent registry.
 
-1. Use `note_type`, `last_reviewed`, and `version` only where their meanings apply.
-2. Use one of these five domain status fields instead of generic `status`:
-   - `processing_status`
-   - `confirmation`
-   - `project_status`
-   - `output_status`
-   - `document_status`
-3. Determine the old field's meaning file by file. Never perform a mechanical repository-wide rename.
-4. Never change `confirmation: 候选` or `待确认` to `已确认` without the user's explicit confirmation.
-5. Update `last_reviewed` only after actually reviewing the file's content.
-6. After changing a property, inspect every Dataview query that may depend on the old field.
-7. Do not force properties onto PDF, PPT, Word, Excel, or image files; maintain their state in the Raw index.
+For a vault that explicitly adopts the legacy LHJWork profile, preserve its five separate status fields: `processing_status`, `confirmation`, `project_status`, `output_status` and `document_status`. Do not impose these fields on other vaults.
 
-## Maintain LHJWork cross-file consistency when applicable
+## Maintain cross-file consistency
 
-Apply these synchronization rules only to LHJWork or another vault that explicitly adopts the same structure. For a general Module 1 inspection, discover equivalent relationships instead of requiring these paths.
+Apply only relationships that the target vault actually uses:
 
-- Raw index changes → refresh the workbench's Raw counts and named queue.
-- Project state or next action changes → update the project现场, project map, and relevant workbench view.
-- Output registration or ownership changes → update output index, owning project现场, `output_count`, and workbench total together.
-- Long-term understanding changes → keep it candidate until confirmed, then synchronize the confirmed entry notes and compile log.
-- Any approved knowledge compilation → update the compile log with changed files, links, remaining gaps, and user confirmation points.
+- Capture or source-index changes → refresh related dashboards and processing queues.
+- Project stage or next-action changes → refresh the project workspace, map and summary views.
+- Output registration or ownership changes → refresh the output index, owning project and output counts together.
+- Long-term understanding changes → keep them provisional until confirmed, then update the relevant entry notes and change history.
+- Approved knowledge compilation → record changed files, links, remaining gaps and confirmation points in the vault's review log or equivalent.
 
-Keep material entities in `01 收进来 Raw`, compiled knowledge in `02 Wiki AI编译层`, live project state in `03 Projects 我的项目`, and output registration in `04 Outputs 输出成果`. Do not move output entities into Outputs by default.
+Discover these relationships from actual content and links. Do not move files merely to imitate a preferred directory structure.
 
-## Preserve inspection boundaries
+## Preserve inspection and security boundaries
 
-Use [knowledge-base-inspection-template.md](references/knowledge-base-inspection-template.md) only in Module 1 and approved repairs. Prefer existing capabilities, do not expose credentials, and do not install or change plugins, automation, queries or configuration without explicit user approval.
+- Prefer existing capabilities and local rules.
+- Do not expose credentials or inspect secret values.
+- Do not install or change plugins, automation, queries, permissions or configuration without explicit user approval.
 
 ## Handle duplicates and Git safely
 
@@ -136,7 +130,7 @@ Use [knowledge-base-inspection-template.md](references/knowledge-base-inspection
 After editing:
 
 1. Re-run `audit-vault.sh` and compare only task-relevant indicators.
-2. Confirm that changed properties follow the target vault's declared rules; for LHJWork, also confirm there are no unintended generic `status` fields.
+2. Confirm that changed properties follow the target vault's declared rules.
 3. Verify changed summaries, relationships and counts against the actual source files or indexes detected in that vault.
 4. Verify changed links point to real files or explicit external-link notes.
 5. Open or query changed notes in Obsidian when the app is available.
