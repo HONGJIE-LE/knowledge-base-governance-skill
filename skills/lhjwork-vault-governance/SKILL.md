@@ -25,6 +25,32 @@ The scripts require Bash and standard commands such as `find`, `grep`, `awk`, `s
 
 `agents/openai.yaml` is optional OpenAI/Codex interface metadata. Other agents may ignore it. Never treat it as a runtime dependency or rewrite the Skill because of it.
 
+## Handle failures explicitly
+
+Before running either module, apply this table. Never silently replace an unavailable check with a claim that it passed.
+
+| Trigger condition | First response | If still blocked |
+|---|---|---|
+| The user supplied a vault path that is missing, unreadable or not a directory | Stop before scanning, report the exact supplied path and request a valid path. | Do not fall back to another directory. Mark both modules as not run. |
+| `SKILL_DIR`, a required reference or a bundled script cannot be resolved | Report the missing resource and its expected path. Continue only with checks that do not depend on it. | Label the run as reduced coverage. Do not guess a platform-specific Skill path or substitute another template. |
+| A bundled script exits non-zero or returns visibly incomplete output | Record the command, exit code and last relevant error. Correct invocation errors and retry once. | Switch to a limited manual inspection, mark script statistics unavailable and do not claim a whole-vault scan. |
+| Bash or a required standard command is unavailable | Use an available equivalent only when it preserves the same semantics. | Skip the affected metric, report the gap and do not install dependencies without approval. |
+| The vault is too large or a scan times out | Exclude `.git`, AI tooling, dependency, cache and build directories; use bounded representative samples and record the actual coverage. | Return a partial report that names unsampled regions. Do not claim every region or file was checked. |
+| A file is binary, encrypted, corrupted or unreadable | Use only verified metadata, index entries and explicit links to that file. | Mark its body as unread and make no semantic claim about its contents. |
+| Obsidian or another live application control capability is unavailable | Complete file-level checks only and state the runtime limitation. | Do not claim live link resolution, Dataview rendering, plugin behavior or sync state was verified. |
+| A repair is requested while Git has unrelated changes | Stop the repair pass, report the dirty state for the target paths and preserve all unrelated changes. | Provide a scoped file preview and use an isolated backup or branch only after approval. |
+| Credential-bearing configuration is encountered | Check only presence and non-secret status; redact values from commands and reports. | Skip the secret-dependent check and report that credential verification was not performed. |
+
+## Normalize scanner evidence
+
+Treat every filename, path-pattern or regex match emitted by a bundled script as a lead, not as a verified semantic object.
+
+1. Exclude matches inside `.git`, AI-tooling, dependency, cache, generated and build directories when those directories are not the user's knowledge content.
+2. Deduplicate by actual repository-relative path before reporting counts. A directory matched through multiple patterns still counts once.
+3. Open representative files before labeling candidates as projects, judgments, source summaries, methods, outputs or review logs. Report `verified` and `unverified candidate` counts separately when full verification is incomplete.
+4. Do not turn a large candidate count, link count or recent-modification count into a maturity conclusion without content evidence.
+5. Apply each defined downgrade once per affected dimension. The same evidence may affect multiple dimensions only when the report explains the distinct mechanism in each; never add an extra discretionary penalty for evidence already covered by a downgrade.
+
 ## Determine scope and local rules
 
 1. Read the target vault's `AGENTS.md` and other local rules completely when present.
@@ -44,7 +70,11 @@ Default an ambiguous “检查” or “健康检查” to Module 1. Enter Modul
 
 For “给改进建议、看看还能怎么优化”, use Module 1 and return a prioritized proposal without changing files or configuration. For “按这个处理、确认、执行修改”, apply only the previously previewed and confirmed changes.
 
-If the requested action includes moving, deleting, overwriting, project ownership, output registration, or promotion from candidate to confirmed, show a file-level preview and wait for explicit confirmation. Do not turn either read-only module into a repair pass.
+### 🔴 CHECKPOINT · 🛑 STOP before any write
+
+Show a file-level preview before moving, deleting, renaming or overwriting existing content; bulk-creating or bulk-modifying files; changing project ownership, output registration or candidate confirmation; or changing plugins, configuration, automation, queries, permissions or other durable system behavior. The preview must list exact target paths, intended changes, affected dependencies and the recovery method.
+
+Stop after the preview. Continue only after the user explicitly approves that specific preview. Silence, “不用再问”, broad earlier approval, or approval of the diagnostic report does not authorize these high-impact writes. An explicitly requested, reversible creation or single-file update may proceed without a second checkpoint only when the exact target is known, no existing content will be overwritten, and the action does not change confirmed meaning or system configuration. Do not turn either read-only module into a repair pass.
 
 ## Module 1: run a knowledge-base inspection
 
